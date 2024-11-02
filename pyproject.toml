@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "three-body-problem"
+version = "0.1.0"
+description = ""
+authors = ["Fady <fnakhla23@gmail.com>"]
+readme = "README.md"
+packages = [{include = "three_body_problem", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
