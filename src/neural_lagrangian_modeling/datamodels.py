@@ -34,7 +34,7 @@ class Trajectory(pydantic.BaseModel):
         trajectory = cls.make_empty(initial_state.mass, steps, dims)
         trajectory.position[0] = initial_state.position
         trajectory.velocity[0] = initial_state.velocity
-
+        return trajectory
 
 
 

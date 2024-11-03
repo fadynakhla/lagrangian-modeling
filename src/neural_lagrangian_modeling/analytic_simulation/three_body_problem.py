@@ -24,7 +24,7 @@ class ThreeBodyAnalyticSimulator:
             datamodels.Trajectory.from_massive_body(o, steps) for o in (m1, m2, m3)
         )
 
-        for step in range(steps + 1):
+        for step in range(steps):
             accelerations = self.accelerations(*trajectories, step)
 
             for a, t in zip(accelerations, trajectories):
