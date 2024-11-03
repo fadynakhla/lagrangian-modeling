@@ -6,19 +6,20 @@ import numpy as np
 import os
 import pathlib
 from neural_lagrangian_modeling import datamodels
-
+from neural_lagrangian_modeling.neural_simulation import vanilla_neural_network
+import torch.optim as optim
+from datetime import datetime
 
 def train(
     model: nn.Module,
     dataset: torch_data.Dataset,
     optimizer: T.optim.Optimizer,
     batch_size: int = 32,
+    num_epochs: int = 10,
 ):
     train_loader = torch_data.DataLoader(dataset, batch_size, shuffle=True)
 
     criterion = nn.MSELoss()
-
-    num_epochs = 10
 
     for epoch in range(num_epochs):
         model.train()
@@ -47,7 +48,7 @@ def train(
             print(
                 f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss / len(train_loader):.4f}"
             )
-
+    
 
 def load_saved_trajectories(
     dir_path: pathlib.Path,
@@ -79,10 +80,25 @@ def create_torch_dataset(data_dir: pathlib.Path) -> torch_data.Dataset:
     output_data = np.hstack(accelerations_list, dtype=np.float64)
     input_tensor = T.tensor(input_data, dtype=T.float64)
     output_tensor = T.tensor(output_data, dtype=T.float64)
-    dataset = torch_data.TensorDataset(input_tensor, output_tensor)
-    return dataset
-
+    return torch_data.TensorDataset(input_tensor, output_tensor)
+    
 
 if __name__ == "__main__":
     data_dir = pathlib.Path(__file__).parent.parent.parent.parent / "data"
     dataset = create_torch_dataset(data_dir=data_dir)
+    model_config = vanilla_neural_network.ModelConfig(input_dim=15, output_dim=1, hidden_dim=128, num_layers=4, activation="softplus")
+    device = "cuda:0" if T.cuda.is_available() else "cpu"
+    model = vanilla_neural_network.Model(model_config)
+    model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.001) 
+    
+    train(model=model, dataset=dataset, optimizer=optimizer)
+
+    model_dir = pathlib.Path(__file__).parent.parent.parent / "model"
+    
+    # Define a path where you want to save the model
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_path = model_dir / f'{timestamp}.pth'  # You can change the name as needed
+
+    # Save the model state dictionary
+    T.save(model.state_dict(), model_path)
