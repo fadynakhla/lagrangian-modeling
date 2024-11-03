@@ -92,16 +92,15 @@ if __name__=="__main__":
 
     # Run simulation
     trajectories = simulator.simulate(
-        bodies[0], bodies[1], bodies[2],
+        *bodies,
         steps=1000,  # More steps for longer simulation
-        dims=2,       # 2D for figure-8 and triangle, 3 for sun-earth-moon
-        visualize=False
+        save_path="data/figure_eight_sample"
     )
 
     # Animate results
     visualizer.animate_trajectories(
         trajectories,
-        interval=10,      # Faster animation
+        interval=5,      # Faster animation
         trail_length=100,  # Longer trails
         save_path="animation.gif"
     )

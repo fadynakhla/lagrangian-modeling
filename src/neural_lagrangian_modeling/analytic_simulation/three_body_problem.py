@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 from numpy import typing as npt
 
@@ -17,8 +18,7 @@ class ThreeBodyAnalyticSimulator:
         m2: datamodels.MassiveBody,
         m3: datamodels.MassiveBody,
         steps: int,
-        dims: int,
-        visualize: bool,
+        save_path: Optional[str] = None,
     ) -> Trajectories:
         trajectories = tuple(
             datamodels.Trajectory.from_massive_body(o, steps) for o in (m1, m2, m3)
@@ -32,6 +32,8 @@ class ThreeBodyAnalyticSimulator:
                 t.velocity[step + 1] = t.velocity[step] + a * self.dt
                 t.position[step + 1] = t.position[step] + t.velocity[step + 1] * self.dt
 
+        if save_path:
+            datamodels.save_trajectories(trajectories, save_path)
         return trajectories
 
     def accelerations(
