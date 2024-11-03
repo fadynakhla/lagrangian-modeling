@@ -1,14 +1,18 @@
-from typing import List, Tuple
-import torch.nn as nn
-import torch.utils.data as torch_data
-import torch as T
-import numpy as np
 import os
 import pathlib
+from datetime import datetime
+from typing import List, Tuple
+
+import numpy as np
+import torch as T
+import torch.nn as nn
+import torch.optim as optim
+import torch.utils.data as torch_data
+from torch.utils.tensorboard import SummaryWriter
+
 from neural_lagrangian_modeling import datamodels
 from neural_lagrangian_modeling.neural_simulation import vanilla_neural_network
-import torch.optim as optim
-from datetime import datetime
+
 
 def train(
     model: nn.Module,
@@ -16,10 +20,14 @@ def train(
     optimizer: T.optim.Optimizer,
     batch_size: int = 32,
     num_epochs: int = 10,
+    log_dir: pathlib.Path = "./iter.log",
 ):
     train_loader = torch_data.DataLoader(dataset, batch_size, shuffle=True)
 
     criterion = nn.MSELoss()
+
+    # Create a SummaryWriter to log metrics
+    writer = SummaryWriter(log_dir)
 
     for epoch in range(num_epochs):
         model.train()
@@ -45,9 +53,14 @@ def train(
             # Accumulate loss
             epoch_loss += loss.item()
 
-            print(
-                f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss / len(train_loader):.4f}"
-            )
+        # Log average loss for the epoch
+        avg_loss = epoch_loss / len(train_loader)
+        writer.add_scalar("Loss/train", avg_loss, epoch)
+
+        print(
+            f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss / len(train_loader):.4f}"
+        )
+    writer.close()
     
 
 def load_saved_trajectories(
@@ -87,12 +100,15 @@ if __name__ == "__main__":
     data_dir = pathlib.Path(__file__).parent.parent.parent.parent / "data"
     dataset = create_torch_dataset(data_dir=data_dir)
     model_config = vanilla_neural_network.ModelConfig(input_dim=15, output_dim=1, hidden_dim=128, num_layers=4, activation="softplus")
-    device = "cuda:0" if T.cuda.is_available() else "cpu"
+    # device = "cuda:0" if T.cuda.is_available() else "cpu"
     model = vanilla_neural_network.Model(model_config)
-    model.to(device)
+    if T.cuda.is_available():
+        model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=0.001) 
     
-    train(model=model, dataset=dataset, optimizer=optimizer)
+    log_dir = model_dir = pathlib.Path(__file__).parent.parent.parent / "logs"
+
+    train(model=model, dataset=dataset, optimizer=optimizer, num_epochs=10, log_dir=log_dir)
 
     model_dir = pathlib.Path(__file__).parent.parent.parent / "model"
     
