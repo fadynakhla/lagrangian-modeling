@@ -5,28 +5,24 @@ from neural_lagrangian_modeling import datamodels
 
 def random_initial_conditions(
     dims: int = 2,
-    mass_range: tuple[float, float] = (0.8, 1.2),  # More similar masses
-    radius_range: tuple[float, float] = (0.5, 1.0),  # Closer together
-    velocity_scale: float = 0.4,  # Lower velocities
+    mass_range: tuple[float, float] = (0.9, 1.1),  # Nearly equal masses
+    radius_range: tuple[float, float] = (0.1, 0.3),  # Much closer together
+    velocity_scale: float = 0.1,  # Much lower velocities
     seed: Optional[int] = None
 ) -> tuple[datamodels.MassiveBody, datamodels.MassiveBody, datamodels.MassiveBody]:
-    """Generate random initial conditions favoring chaotic bound orbits.
+    """Generate random initial conditions for highly chaotic bound orbits.
 
-    The bodies are initialized with:
-    - Similar masses (helps prevent ejection)
-    - Relatively close positions
-    - Sub-escape velocities
-    - Some angular momentum to prevent immediate collisions
-    - Zero center of mass position and velocity
+    Uses very close initial positions and low velocities to ensure strong
+    gravitational interactions between bodies.
     """
     if seed is not None:
         np.random.seed(seed)
 
-    # Generate nearly equal masses
+    # Almost equal masses for maximum chaos
     masses = np.random.uniform(*mass_range, 3)
     total_mass = np.sum(masses)
 
-    # Generate positions in a tighter configuration
+    # Generate very close positions
     positions = []
     while len(positions) < 3:
         if dims == 2:
@@ -44,71 +40,43 @@ def random_initial_conditions(
                 np.cos(phi)
             ], dtype=np.float128)
 
-        # Random radius within smaller range
+        # Small initial radius
         r = np.random.uniform(*radius_range)
         pos *= r
 
-        # Allow closer positions but prevent exact overlaps
-        min_separation = radius_range[0] / 4
+        # Allow very close positions
+        min_separation = radius_range[0] / 5
         if all(np.linalg.norm(pos - p) > min_separation for p in positions):
             positions.append(pos)
 
     positions = np.array(positions, dtype=np.float128)
 
-    # Center the positions
+    # Center positions
     com = np.sum(positions * masses[:, np.newaxis], axis=0) / total_mass
     positions -= com
 
-    # Generate velocities for bound orbits
+    # Generate low initial velocities
     velocities = []
     for i, (pos, mass) in enumerate(zip(positions, masses)):
-        # Calculate escape velocity at this position relative to other bodies
+        if dims == 2:
+            # Purely random velocity direction
+            vel_direction = np.random.randn(2)
+            vel_direction = vel_direction / np.linalg.norm(vel_direction)
+        else:
+            vel_direction = np.random.randn(3)
+            vel_direction = vel_direction / np.linalg.norm(vel_direction)
+
+        # Very low velocity magnitude based on local escape velocity
         other_masses = np.delete(masses, i)
         other_positions = np.delete(positions, i, axis=0)
-
-        # Get distances to other bodies
         r_vectors = other_positions - pos
         r_magnitudes = np.linalg.norm(r_vectors, axis=1)
 
-        # Calculate velocity that would give bound orbit
-        escape_v = np.sqrt(2 * np.sum(other_masses / r_magnitudes))
-        orbital_v = escape_v * velocity_scale  # Sub-escape velocity
+        # Use minimum distance to any other body for velocity scaling
+        min_r = np.min(r_magnitudes)
+        v_mag = np.sqrt(np.sum(other_masses) / min_r) * velocity_scale
 
-        # Direction: mix of orbital and random components
-        if dims == 2:
-            # Base orbital direction (90 degrees to position)
-            orbital_dir = np.array([-pos[1], pos[0]], dtype=np.float128)
-            if np.linalg.norm(orbital_dir) > 0:
-                orbital_dir /= np.linalg.norm(orbital_dir)
-
-            # Add random component
-            random_dir = np.random.randn(2)
-            random_dir = random_dir / np.linalg.norm(random_dir)
-
-            # Mix orbital and random directions
-            mix_ratio = np.random.uniform(0.3, 0.7)
-            vel_direction = (mix_ratio * orbital_dir +
-                           (1 - mix_ratio) * random_dir)
-            vel_direction = vel_direction / np.linalg.norm(vel_direction)
-
-        else:
-            # 3D version
-            ref = np.array([0, 0, 1], dtype=np.float128)
-            if np.abs(np.dot(pos/np.linalg.norm(pos), ref)) > 0.9:
-                ref = np.array([0, 1, 0], dtype=np.float128)
-            orbital_dir = np.cross(pos, ref)
-            if np.linalg.norm(orbital_dir) > 0:
-                orbital_dir /= np.linalg.norm(orbital_dir)
-
-            random_dir = np.random.randn(3)
-            random_dir = random_dir / np.linalg.norm(random_dir)
-
-            mix_ratio = np.random.uniform(0.3, 0.7)
-            vel_direction = (mix_ratio * orbital_dir +
-                           (1 - mix_ratio) * random_dir)
-            vel_direction = vel_direction / np.linalg.norm(vel_direction)
-
-        velocities.append(vel_direction * orbital_v)
+        velocities.append(vel_direction * v_mag)
 
     velocities = np.array(velocities, dtype=np.float128)
 
@@ -127,7 +95,6 @@ def random_initial_conditions(
     )
 
     return bodies
-
 
 # def random_initial_conditions(
 #     dims: int = 2,
