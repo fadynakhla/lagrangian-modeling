@@ -2,11 +2,10 @@ from typing import List, Literal
 
 import torch as T
 import torch.nn as nn
-import torch.functional as F
 import pydantic
 
 
-class VanillaNNConfig(pydantic.BaseModel):
+class ModelConfig(pydantic.BaseModel):
     input_dim: int
     output_dim: int
     hidden_dim: int
@@ -22,9 +21,9 @@ activation_fn_map = {
 }
 
 
-class VanillaNeuralNetwork(nn.Module):
+class Model(nn.Module):
 
-    def __init__(self, model_config: VanillaNNConfig) -> None:
+    def __init__(self, model_config: ModelConfig) -> None:
         super().__init__()
         self.input_dim = model_config.input_dim
         self.num_hidden_layers = model_config.num_layers
@@ -53,9 +52,9 @@ class VanillaNeuralNetwork(nn.Module):
 
 
 if __name__ == "__main__":
-    model_config = VanillaNNConfig(
+    model_config = ModelConfig(
         input_dim=5, output_dim=1, hidden_dim=2, num_layers=3, activation="softplus"
     )
-    model = VanillaNeuralNetwork(model_config)
+    model = Model(model_config)
     print((5, 1, 2, 3))
     print(model.neural_layers)
