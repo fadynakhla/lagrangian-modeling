@@ -14,10 +14,10 @@ class ModelConfig(pydantic.BaseModel):
 
 
 activation_fn_map = {
-    "relu": nn.ReLU,
-    "leaky_relu": nn.LeakyReLU,
-    "softmax": nn.Softmax,
-    "softplus": nn.Softplus,
+    "relu": nn.ReLU(),
+    "leaky_relu": nn.LeakyReLU(),
+    "softmax": nn.Softmax(),
+    "softplus": nn.Softplus(),
 }
 
 
@@ -25,6 +25,7 @@ class Model(nn.Module):
 
     def __init__(self, model_config: ModelConfig) -> None:
         super().__init__()
+        self.device = T.device("cuda" if T.cuda.is_available() else "cpu")
         self.input_dim = model_config.input_dim
         self.num_hidden_layers = model_config.num_layers
         self.hidden_dim = model_config.hidden_dim
@@ -35,10 +36,10 @@ class Model(nn.Module):
             + [self.hidden_dim for i in range(self.num_hidden_layers)]
             + [self.output_dim]
         )
-        self.neural_layers: List[nn.Linear] = [
-            nn.Linear(dim_vector[i - 1], dim_vector[i])
-            for i in range(1, len(dim_vector))
-        ]
+        self.neural_layers: List[nn.Linear] = nn.ModuleList(
+            [nn.Linear(dim_vector[i - 1], dim_vector[i], dtype=T.float64)
+            for i in range(1, len(dim_vector))]
+        )
 
         self.activation = activation_fn_map[model_config.activation]
 

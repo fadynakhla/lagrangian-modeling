@@ -1,4 +1,5 @@
-from typing import Tuple, Any
+import os
+from typing import List, Tuple, Any
 
 import json
 import pathlib
@@ -44,18 +45,15 @@ class Trajectory(pydantic.BaseModel):
 
 def serialize_state_to_inputs(
     trajectories: Tuple[Trajectory, ...],
-) -> npt.NDArray[Any]:
+) -> dict[str, npt.NDArray[np.float64]]:
     # Extract masses, positions, and velocities
     masses = np.array([t.mass for t in trajectories], dtype=np.float64)  # 3
     positions = np.concat([t.position for t in trajectories], axis=1)  # N, 6
-    # print(positions.shape)
     velocities = np.concat([t.velocity for t in trajectories], axis=1)  # N, 6
-    # print(velocities.shape)
 
-    data = np.concat(
-        [np.tile(masses, (len(positions), 1)), positions, velocities], axis=1
-    )
-    return data
+    masses = np.tile(masses, (len(positions), 1)) # N, 3
+
+    return masses, positions, velocities
 
 
 # n, 15
@@ -67,7 +65,7 @@ def get_accelerations_from_state(
     # Extract accelerations
     accelerations = np.concat(
         [t.acceleration for t in trajectories], axis=1, dtype=np.float64
-    )  # 3, n, 2
+    )  # N, 6
     return accelerations
 
 
@@ -125,6 +123,22 @@ def load_trajectories(filepath: str) -> tuple[Trajectory, ...]:
         trajectories.append(traj)
 
     return tuple(trajectories)
+
+
+def load_saved_trajectories(
+    dir_path: pathlib.Path,
+) -> List[Tuple[Trajectory, ...]]:
+
+    def get_npz_files(dir_path: pathlib.Path):
+        return [f for f in os.listdir(dir_path) if f.endswith(".npz")]
+
+    files: List[str] = get_npz_files(dir_path)
+
+    trajectories = []
+    for f in files:
+        trajectory = load_trajectories(f"{dir_path}/{f}")
+        trajectories.append(trajectory)
+    return trajectories
 
 
 if __name__ == "__main__":

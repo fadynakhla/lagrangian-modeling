@@ -35,6 +35,7 @@ def calculate_acceleration_vectorized(
 
     # Combine into state vector and compute Lagrangian
     state: Tensor = T.cat([q, q_dot, masses], dim=1)  # Shape: (batch_size, 2 * n_dims + n_objects)
+    print(state.shape)
     L: Tensor = model(state)  # Shape: (batch_size, 1)
 
     # Rest of the function remains the same
@@ -48,23 +49,38 @@ def calculate_acceleration_vectorized(
         for i in range(batch_size)
     ])  # Shape: (batch_size, n_dims)
 
-    basis: Tensor = T.eye(n_dims)  # Shape: (n_dims, n_dims)
+    # basis: Tensor = T.eye(n_dims)  # Shape: (n_dims, n_dims)
+    # Vectorized Hessian calculation ∂²L/∂q̇²
+    d2L_dq_dot2 = T.zeros(batch_size, n_dims, n_dims, device=q.device)
+    d2L_dqdq_dot = T.zeros(batch_size, n_dims, n_dims, device=q.device)
 
-    d2L_dq_dot2: Tensor = T.stack([
-        T.stack([
-            T.autograd.grad(dL_dq_dot[b], q_dot, basis[i], create_graph=True)[0][b]
-            for i in range(n_dims)
-        ])
-        for b in range(batch_size)
-    ])  # Shape: (batch_size, n_dims, n_dims)
+    # Compute Hessians batch-wise
+    for b in range(batch_size):
+        for i in range(n_dims):
+            # Create vector for this batch and dimension
+            v = T.zeros_like(q_dot)
+            v[b, i] = 1.0
 
-    d2L_dqdq_dot: Tensor = T.stack([
-        T.stack([
-            T.autograd.grad(dL_dq[b], q_dot, basis[i], create_graph=True)[0][b]
-            for i in range(n_dims)
-        ])
-        for b in range(batch_size)
-    ])  # Shape: (batch_size, n_dims, n_dims)
+            # Compute second derivatives
+            d2L_dq_dot2[b, i] = T.autograd.grad(dL_dq_dot[b, i], q_dot, create_graph=True)[0][b]
+            d2L_dqdq_dot[b, i] = T.autograd.grad(dL_dq[b, i], q_dot, create_graph=True)[0][b]
+
+
+    # d2L_dq_dot2: Tensor = T.stack([
+    #     T.stack([
+    #         T.autograd.grad(dL_dq_dot[b], q_dot, basis[i], create_graph=True)[0][b]
+    #         for i in range(n_dims)
+    #     ])
+    #     for b in range(batch_size)
+    # ])  # Shape: (batch_size, n_dims, n_dims)
+
+    # d2L_dqdq_dot: Tensor = T.stack([
+    #     T.stack([
+    #         T.autograd.grad(dL_dq[b], q_dot, basis[i], create_graph=True)[0][b]
+    #         for i in range(n_dims)
+    #     ])
+    #     for b in range(batch_size)
+    # ])  # Shape: (batch_size, n_dims, n_dims)
 
     q_ddot: Tensor = T.stack([
         T.linalg.solve(
